@@ -4,13 +4,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import javax.swing.*;
 import javax.websocket.*;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @ServerEndpoint("/websocket/{userId}")
@@ -19,7 +20,7 @@ public class WebSocketServer {
     //静态变量，用来记录当前在线连接数。应该把它设计成线程安全的。
     private static int onlineCount = 0;
     //创建一个线程安全的map
-    private static Map<String,WebSocketServer> users = Collections.synchronizedMap(new HashMap());
+    private static Map<String, WebSocketServer> users = new ConcurrentHashMap<String, WebSocketServer>();
 
     //与某个客户端的连接会话，需要通过它来给客户端发送数据
     private Session session;
@@ -28,6 +29,7 @@ public class WebSocketServer {
 
     /**
      * 连接建立成功调用的方法
+     * 每个user会对应一个session
      */
     @OnOpen
     public void onOpen(Session session, @PathParam("userId") String username) {
@@ -37,7 +39,7 @@ public class WebSocketServer {
         addOnlineCount();           //在线数加1
         log.info(username+"加入！当前在线人数为" + getOnlineCount());
         try {
-            this.session.getBasicRemote().sendText("连接成功");
+            this.session.getBasicRemote().sendText("I am waiting for you to say something to me");
         } catch (IOException e) {
             log.error("websocket IO异常");
         }
@@ -65,25 +67,10 @@ public class WebSocketServer {
             if (StringUtils.isEmpty(message)){
                 return ;
             }
-            //如果给所有人发消息携带@ALL, 给特定人发消息携带@xxx@xxx#message
-            String[] split = message.split("#");
-            if (split.length>1){
-                String[] users = split[0].split("@");
-                if (users.length<2){return;}
-                String firstuser = users[1].trim();
-                if (StringUtils.isEmpty(firstuser)||"ALL".equals(firstuser.toUpperCase())){
-                    String msg =username +": "+ split[1];
-                    sendInfo(msg);//群发消息
-                }else{//给特定人员发消息
-                    for (String user : users) {
-                        if (!StringUtils.isEmpty(user.trim())){
-                            sendMessageToSomeBody(user.trim(),split[1]);
-                        }
-                    }
-                }
-            }else{
-                sendInfo(username +": "+message);
-            }
+            //弹出对话框
+            String s= JOptionPane.showInputDialog(message);
+            sendInfo(s);
+            System.out.print("发送成功!");
         } catch (IOException e) {
             e.printStackTrace();
         }
